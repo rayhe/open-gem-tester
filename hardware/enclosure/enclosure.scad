@@ -1,295 +1,364 @@
-/*
- * OpenGemTester Enclosure
- * Parametric 3D-printable enclosure for the OpenGemTester project.
- *
- * Designed for:
- *   - ESP32-S3 DevKitC-1 (approx 70mm x 25mm)
- *   - Small perfboard for supporting circuitry (30mm x 50mm)
- *   - SSD1306 0.96" OLED display (27mm x 13mm visible)
- *   - 6mm tactile button
- *   - Piezo buzzer (12mm diameter)
- *   - Copper probe tip exiting from one end
- *   - USB-C access on the opposite end
- *
- * Print settings:
- *   Layer height: 0.2mm
- *   Perimeters: 3
- *   Infill: 20%
- *   Supports: None needed in recommended orientation
- *   Material: PLA or PETG
- *
- * License: MIT
- */
+// OpenGemTester - Parametric Enclosure
+// OpenSCAD source file
+// Pen-style handheld form factor for ESP32-S3 based gemstone tester
+//
+// Usage:
+//   1. Open this file in OpenSCAD (https://openscad.org)
+//   2. Adjust parameters below to fit your specific components
+//   3. Render with F6, export STL with F7
+//   4. Print body and lid separately (no supports needed)
+//
+// License: MIT
 
-// ==========================================
-// Parameters (adjust to fit your components)
-// ==========================================
+// ============================================================
+// PARAMETERS - Adjust these to customize your enclosure
+// ============================================================
 
-// Overall body dimensions
-body_length = 160;
-body_width  = 40;
-body_height = 25;
-wall_thickness = 2.0;
-corner_radius = 4;
+// --- Overall body dimensions ---
+body_length = 160;       // mm, total length
+body_width  = 40;        // mm, total width
+body_height = 25;        // mm, total height (body + lid together)
+wall_thickness = 2;      // mm, shell wall thickness
+corner_radius = 3;       // mm, rounded edge radius
 
-// Lid
-lid_thickness = 2.0;
-lid_lip = 1.5;        // Overlap lip for snap fit
-snap_tolerance = 0.3;  // Clearance for snap fit
+// --- Body/lid split ---
+// The body is the bottom part, lid is the top part
+body_split = 15;         // mm, height of the bottom body piece
+lid_height = body_height - body_split; // mm, height of the lid
 
-// ESP32-S3 DevKitC-1 mounting
-esp32_length = 70;
-esp32_width  = 25.5;
-esp32_offset_x = 50;  // Distance from probe end
-esp32_offset_y = 0;   // Centered
-esp32_standoff_height = 3;
-esp32_screw_diameter = 2.2;  // M2 screw holes
+// --- ESP32-S3 DevKitC-1 dimensions ---
+// Typical board: ~70mm x 25.4mm
+esp32_length = 70;       // mm
+esp32_width  = 25.5;     // mm
+esp32_offset_x = 8;      // mm, distance from back wall to ESP32 front edge
+esp32_offset_y = (body_width - esp32_width) / 2; // centered
+esp32_standoff_h = 3;    // mm, height of standoffs above floor
+esp32_standoff_d = 4;    // mm, standoff outer diameter
+esp32_screw_d = 2.2;     // mm, hole for M2 screw
 
-// Perfboard bay
-perf_length = 50;
-perf_width  = 30;
-perf_offset_x = 5;   // Near probe end
+// --- ESP32 mounting hole positions (relative to board corner) ---
+// Approximate positions for DevKitC-1; measure your board and adjust
+esp32_hole_inset_x = 2.5;  // mm from board edge
+esp32_hole_inset_y = 2.5;  // mm from board edge
 
-// OLED display window
-oled_window_width  = 27;
-oled_window_height = 15;
-oled_offset_x = 85;  // From probe end
-oled_offset_y = 0;    // Centered on width
+// --- Perfboard area ---
+// Sits next to the ESP32, holds ADS1115, MOSFETs, resistors
+perfboard_length = 50;   // mm
+perfboard_width  = 30;   // mm
+perfboard_offset_x = esp32_offset_x + esp32_length + 3; // 3mm gap after ESP32
+perfboard_standoff_h = 3;
+perfboard_standoff_d = 4;
 
-// Button hole
-button_diameter = 7;
-button_offset_x = 25;  // From probe end
-button_offset_y = 10;  // Offset from center
+// --- OLED display window (SSD1306 0.96" 128x64) ---
+// Active area is roughly 22mm x 11mm; cutout slightly larger
+oled_window_w = 27;      // mm, window width
+oled_window_h = 15;      // mm, window height
+oled_offset_x = esp32_offset_x + 20; // mm from back of enclosure
+oled_offset_y = (body_width - oled_window_w) / 2; // centered
 
-// Buzzer sound port
-buzzer_diameter = 12;
-buzzer_offset_x = 45;
-buzzer_offset_y = -10;
-buzzer_hole_count = 7;
-buzzer_hole_diameter = 1.5;
+// --- Button hole ---
+button_hole_d = 7;       // mm, diameter for 6mm tactile button
+button_offset_x = oled_offset_x + oled_window_h + 15; // mm from back
+button_offset_y = body_width / 2; // centered
 
-// Probe exit hole (narrow end)
-probe_hole_diameter = 4;
+// --- Buzzer sound holes ---
+buzzer_hole_d = 1.2;     // mm, individual hole diameter
+buzzer_grid_rows = 3;
+buzzer_grid_cols = 3;
+buzzer_grid_spacing = 3; // mm between hole centers
+buzzer_offset_x = button_offset_x + 15; // mm from back
+buzzer_offset_y = body_width / 2; // centered
 
-// USB-C port (opposite end)
-usbc_width  = 10;
-usbc_height = 4;
+// --- USB-C port cutout (at the back end) ---
+usbc_width  = 12;        // mm
+usbc_height = 7;         // mm
+usbc_z_offset = esp32_standoff_h + 1.6 + 1; // standoff + PCB thickness + center offset
 
-// Ground plate wire exit
-wire_hole_diameter = 3;
-wire_hole_offset_x = 130;
+// --- Probe exit hole (at the front end) ---
+probe_hole_d = 6;        // mm, diameter
+probe_hole_z = body_split / 2; // centered in body height
 
-// ==========================================
-// Modules
-// ==========================================
+// --- Ground plate wire exit (side hole) ---
+wire_exit_d = 4;         // mm, diameter for wire pass-through
+wire_exit_x = body_length - 30; // mm from back, on the side
+wire_exit_z = body_split / 2;
 
+// --- Lid attachment ---
+// Option 1: Screw holes (M2)
+use_screws = true;
+screw_hole_d = 2.2;      // mm, for M2 screws
+screw_boss_d = 6;         // mm, boss diameter around screw hole
+num_screws = 4;
+// Screw positions: corners, inset from edges
+screw_inset_x = 10;      // mm from each end
+screw_inset_y = 6;        // mm from each side
+
+// --- Lid lip (keeps lid aligned) ---
+lid_lip_width = 1.5;     // mm, width of the alignment lip
+lid_lip_height = 2;      // mm, how far the lip extends down into body
+
+// --- Tolerances ---
+tolerance = 0.3;         // mm, clearance for fitting parts
+
+// ============================================================
+// MODULES
+// ============================================================
+
+// Rounded box primitive
+// Creates a box with rounded vertical edges
 module rounded_box(l, w, h, r) {
     hull() {
-        for (x = [r, l - r])
-            for (y = [r, w - r])
-                translate([x, y, 0])
-                    cylinder(h = h, r = r, $fn = 32);
+        translate([r, r, 0])
+            cylinder(h=h, r=r, $fn=30);
+        translate([l-r, r, 0])
+            cylinder(h=h, r=r, $fn=30);
+        translate([r, w-r, 0])
+            cylinder(h=h, r=r, $fn=30);
+        translate([l-r, w-r, 0])
+            cylinder(h=h, r=r, $fn=30);
     }
 }
 
-module body_shell() {
+// Standoff post with screw hole
+module standoff(h, od, id) {
+    difference() {
+        cylinder(h=h, d=od, $fn=20);
+        translate([0, 0, -0.1])
+            cylinder(h=h+0.2, d=id, $fn=20);
+    }
+}
+
+// ============================================================
+// BODY (bottom piece)
+// ============================================================
+
+module body() {
     difference() {
         // Outer shell
-        rounded_box(body_length, body_width, body_height, corner_radius);
+        rounded_box(body_length, body_width, body_split, corner_radius);
 
-        // Inner cavity
+        // Hollow out the interior
         translate([wall_thickness, wall_thickness, wall_thickness])
             rounded_box(
-                body_length - 2 * wall_thickness,
-                body_width - 2 * wall_thickness,
-                body_height - wall_thickness,  // Open top for lid
+                body_length - 2*wall_thickness,
+                body_width - 2*wall_thickness,
+                body_split, // cut through the top (lid will cap it)
                 corner_radius - wall_thickness
             );
+
+        // USB-C port cutout (back end, centered)
+        translate([
+            -0.1,
+            (body_width - usbc_width) / 2,
+            usbc_z_offset - usbc_height/2
+        ])
+            cube([wall_thickness + 0.2, usbc_width, usbc_height]);
+
+        // Probe exit hole (front end, centered)
+        translate([body_length, body_width/2, probe_hole_z])
+            rotate([0, -90, 0])
+                cylinder(h=wall_thickness+0.2, d=probe_hole_d, $fn=30);
+
+        // Ground plate wire exit (right side)
+        translate([wire_exit_x, body_width, wire_exit_z])
+            rotate([90, 0, 0])
+                cylinder(h=wall_thickness+0.2, d=wire_exit_d, $fn=20);
+
+        // Screw holes in body (if using screws)
+        if (use_screws) {
+            for (pos = screw_positions()) {
+                translate([pos[0], pos[1], -0.1])
+                    cylinder(h=body_split+0.2, d=screw_hole_d, $fn=20);
+            }
+        }
     }
-}
 
-module probe_hole() {
-    // Hole on the narrow end (x = 0) for the copper probe tip
-    translate([- 1, body_width / 2, body_height / 2])
-        rotate([0, 90, 0])
-            cylinder(h = wall_thickness + 2, d = probe_hole_diameter, $fn = 32);
-}
+    // ESP32 standoffs (4 corners of the board)
+    for (dx = [0, esp32_length - 2*esp32_hole_inset_x])
+        for (dy = [0, esp32_width - 2*esp32_hole_inset_y])
+            translate([
+                esp32_offset_x + esp32_hole_inset_x + dx,
+                esp32_offset_y + esp32_hole_inset_y + dy,
+                wall_thickness
+            ])
+                standoff(esp32_standoff_h, esp32_standoff_d, esp32_screw_d);
 
-module usbc_port() {
-    // USB-C opening on the opposite narrow end (x = body_length)
-    translate([body_length - wall_thickness - 1, body_width / 2 - usbc_width / 2, body_height / 2 - usbc_height / 2])
-        cube([wall_thickness + 2, usbc_width, usbc_height]);
-}
+    // Perfboard standoffs (4 corners)
+    for (dx = [3, perfboard_length - 3])
+        for (dy = [3, min(perfboard_width, body_width - 2*wall_thickness - 6) - 3])
+            translate([
+                perfboard_offset_x + dx,
+                wall_thickness + 3 + dy,
+                wall_thickness
+            ])
+                standoff(perfboard_standoff_h, perfboard_standoff_d, esp32_screw_d);
 
-module oled_window() {
-    // Rectangular window on the top face for the OLED display
-    translate([
-        oled_offset_x - oled_window_width / 2,
-        body_width / 2 + oled_offset_y - oled_window_height / 2,
-        body_height - wall_thickness - 1
-    ])
-        cube([oled_window_width, oled_window_height, wall_thickness + 2]);
-}
-
-module button_hole() {
-    // Round hole on the top face for the tactile button
-    translate([
-        button_offset_x,
-        body_width / 2 + button_offset_y,
-        body_height - wall_thickness - 1
-    ])
-        cylinder(h = wall_thickness + 2, d = button_diameter, $fn = 32);
-}
-
-module buzzer_holes() {
-    // Array of small holes for sound from the piezo buzzer
-    translate([buzzer_offset_x, body_width / 2 + buzzer_offset_y, body_height - wall_thickness - 1]) {
-        // Center hole
-        cylinder(h = wall_thickness + 2, d = buzzer_hole_diameter, $fn = 16);
-        // Ring of holes
-        for (i = [0 : buzzer_hole_count - 1]) {
-            angle = i * 360 / buzzer_hole_count;
-            translate([cos(angle) * 4, sin(angle) * 4, 0])
-                cylinder(h = wall_thickness + 2, d = buzzer_hole_diameter, $fn = 16);
+    // Screw bosses in body corners
+    if (use_screws) {
+        for (pos = screw_positions()) {
+            translate([pos[0], pos[1], wall_thickness])
+                difference() {
+                    cylinder(h=body_split - wall_thickness, d=screw_boss_d, $fn=20);
+                    translate([0, 0, -0.1])
+                        cylinder(h=body_split, d=screw_hole_d, $fn=20);
+                }
         }
     }
 }
 
-module wire_exit() {
-    // Hole on the side for the ground plate wire
-    translate([
-        wire_hole_offset_x,
-        -1,
-        body_height / 2
-    ])
-        rotate([-90, 0, 0])
-            cylinder(h = wall_thickness + 2, d = wire_hole_diameter, $fn = 32);
-}
-
-module esp32_standoffs() {
-    // Four standoff posts for M2 screws to mount the ESP32 board
-    standoff_positions = [
-        [esp32_offset_x, body_width / 2 - esp32_width / 2 + 2],
-        [esp32_offset_x, body_width / 2 + esp32_width / 2 - 2],
-        [esp32_offset_x + esp32_length - 4, body_width / 2 - esp32_width / 2 + 2],
-        [esp32_offset_x + esp32_length - 4, body_width / 2 + esp32_width / 2 - 2]
-    ];
-
-    for (pos = standoff_positions) {
-        translate([pos[0], pos[1], wall_thickness])
-            difference() {
-                cylinder(h = esp32_standoff_height, d = 5, $fn = 32);
-                cylinder(h = esp32_standoff_height + 1, d = esp32_screw_diameter, $fn = 32);
-            }
-    }
-}
+// ============================================================
+// LID (top piece)
+// ============================================================
 
 module lid() {
-    // Snap-fit lid
     difference() {
-        rounded_box(
-            body_length - 2 * wall_thickness + 2 * snap_tolerance,
-            body_width - 2 * wall_thickness + 2 * snap_tolerance,
-            lid_thickness,
-            corner_radius - wall_thickness
-        );
+        union() {
+            // Outer shell of lid
+            rounded_box(body_length, body_width, lid_height, corner_radius);
 
-        // OLED window passthrough
+            // Alignment lip (extends downward, will fit inside body)
+            translate([
+                wall_thickness + tolerance,
+                wall_thickness + tolerance,
+                -lid_lip_height
+            ])
+                rounded_box(
+                    body_length - 2*(wall_thickness + tolerance),
+                    body_width - 2*(wall_thickness + tolerance),
+                    lid_lip_height,
+                    max(1, corner_radius - wall_thickness - tolerance)
+                );
+        }
+
+        // Hollow out (thin shell)
+        translate([wall_thickness, wall_thickness, -lid_lip_height - 0.1])
+            rounded_box(
+                body_length - 2*wall_thickness,
+                body_width - 2*wall_thickness,
+                lid_height - wall_thickness + 0.1,
+                max(1, corner_radius - wall_thickness)
+            );
+
+        // OLED display window cutout
+        translate([oled_offset_x, oled_offset_y, -0.1])
+            cube([oled_window_h, oled_window_w, lid_height + 0.2]);
+
+        // Button hole
+        translate([button_offset_x, button_offset_y, -0.1])
+            cylinder(h=lid_height + 0.2, d=button_hole_d, $fn=30);
+
+        // Buzzer sound holes (grid pattern)
+        for (r = [0:buzzer_grid_rows-1])
+            for (c = [0:buzzer_grid_cols-1])
+                translate([
+                    buzzer_offset_x + r * buzzer_grid_spacing - (buzzer_grid_rows-1)*buzzer_grid_spacing/2,
+                    buzzer_offset_y + c * buzzer_grid_spacing - (buzzer_grid_cols-1)*buzzer_grid_spacing/2,
+                    -0.1
+                ])
+                    cylinder(h=lid_height + 0.2, d=buzzer_hole_d, $fn=15);
+
+        // Probe exit hole in lid (matching body)
+        translate([body_length, body_width/2, lid_height/2])
+            rotate([0, -90, 0])
+                cylinder(h=wall_thickness+0.2, d=probe_hole_d, $fn=30);
+
+        // USB-C cutout in lid (if port is tall enough to reach lid)
         translate([
-            oled_offset_x - wall_thickness - oled_window_width / 2,
-            body_width / 2 + oled_offset_y - wall_thickness - oled_window_height / 2,
-            -1
+            -0.1,
+            (body_width - usbc_width) / 2,
+            -0.1
         ])
-            cube([oled_window_width, oled_window_height, lid_thickness + 2]);
+            cube([wall_thickness + 0.2, usbc_width, lid_height + 0.2]);
 
-        // Button passthrough
-        translate([
-            button_offset_x - wall_thickness,
-            body_width / 2 + button_offset_y - wall_thickness,
-            -1
-        ])
-            cylinder(h = lid_thickness + 2, d = button_diameter, $fn = 32);
-
-        // Buzzer holes passthrough
-        translate([buzzer_offset_x - wall_thickness, body_width / 2 + buzzer_offset_y - wall_thickness, -1]) {
-            cylinder(h = lid_thickness + 2, d = buzzer_hole_diameter, $fn = 16);
-            for (i = [0 : buzzer_hole_count - 1]) {
-                angle = i * 360 / buzzer_hole_count;
-                translate([cos(angle) * 4, sin(angle) * 4, 0])
-                    cylinder(h = lid_thickness + 2, d = buzzer_hole_diameter, $fn = 16);
+        // Screw holes through lid
+        if (use_screws) {
+            for (pos = screw_positions()) {
+                translate([pos[0], pos[1], -lid_lip_height - 0.1])
+                    cylinder(h=lid_height + lid_lip_height + 0.2, d=screw_hole_d, $fn=20);
             }
         }
     }
+}
 
-    // Snap lip around the inside edge
-    translate([snap_tolerance, snap_tolerance, lid_thickness])
-        difference() {
-            rounded_box(
-                body_length - 2 * wall_thickness,
-                body_width - 2 * wall_thickness,
-                lid_lip,
-                corner_radius - wall_thickness - snap_tolerance
-            );
-            translate([snap_tolerance + 0.5, snap_tolerance + 0.5, -1])
-                rounded_box(
-                    body_length - 2 * wall_thickness - 2 * snap_tolerance - 1,
-                    body_width - 2 * wall_thickness - 2 * snap_tolerance - 1,
-                    lid_lip + 2,
-                    max(1, corner_radius - wall_thickness - 2 * snap_tolerance)
-                );
+// ============================================================
+// GROUND PLATE PEDESTAL (separate piece)
+// ============================================================
+
+module ground_plate_pedestal() {
+    pedestal_w = 35;    // mm, base width
+    pedestal_d = 35;    // mm, base depth
+    pedestal_h = 8;     // mm, base height
+    plate_recess_w = 26; // mm, recess for copper plate
+    plate_recess_d = 26;
+    plate_recess_depth = 1.5; // mm
+    wire_channel_d = 3; // mm
+
+    difference() {
+        // Base block with rounded corners
+        hull() {
+            for (dx = [3, pedestal_w-3])
+                for (dy = [3, pedestal_d-3])
+                    translate([dx, dy, 0])
+                        cylinder(h=pedestal_h, r=3, $fn=20);
         }
-}
 
-module ground_plate_stand() {
-    // Small stand for the copper ground plate
-    plate_size = 25;
-    base_size = 35;
-    base_height = 5;
-    plate_recess = 1;
+        // Recess for copper plate (centered on top)
+        translate([
+            (pedestal_w - plate_recess_w) / 2,
+            (pedestal_d - plate_recess_d) / 2,
+            pedestal_h - plate_recess_depth
+        ])
+            cube([plate_recess_w, plate_recess_d, plate_recess_depth + 0.1]);
 
-    difference() {
-        // Base
-        rounded_box(base_size, base_size, base_height, 3);
-
-        // Recess for the copper plate
-        translate([(base_size - plate_size) / 2, (base_size - plate_size) / 2, base_height - plate_recess])
-            cube([plate_size, plate_size, plate_recess + 1]);
-
-        // Wire channel
-        translate([base_size / 2, -1, 2])
+        // Wire channel (exits from the side)
+        translate([pedestal_w/2, -0.1, pedestal_h/2])
             rotate([-90, 0, 0])
-                cylinder(h = (base_size - plate_size) / 2 + 2, d = wire_hole_diameter, $fn = 32);
+                cylinder(h=pedestal_d/2 + 0.1, d=wire_channel_d, $fn=20);
+
+        // Wire channel meets the plate recess from below
+        translate([pedestal_w/2, pedestal_d/4, pedestal_h - plate_recess_depth - 0.1])
+            cylinder(h=plate_recess_depth + 0.2, d=wire_channel_d, $fn=20);
     }
 }
 
-// ==========================================
-// Assembly
-// ==========================================
+// ============================================================
+// HELPER FUNCTIONS
+// ============================================================
 
-// Main body with all cutouts
-module main_body() {
-    difference() {
-        body_shell();
-        probe_hole();
-        usbc_port();
-        oled_window();
-        button_hole();
-        buzzer_holes();
-        wire_exit();
-    }
-    esp32_standoffs();
-}
+function screw_positions() = [
+    [screw_inset_x, screw_inset_y],
+    [body_length - screw_inset_x, screw_inset_y],
+    [screw_inset_x, body_width - screw_inset_y],
+    [body_length - screw_inset_x, body_width - screw_inset_y]
+];
 
-// Render everything (separated for printing)
-// Comment/uncomment to export individual parts
+// ============================================================
+// RENDER
+// ============================================================
+// Uncomment the part you want to render/export:
+//   - For printing, render one part at a time
+//   - For preview, show all parts in exploded view
 
-// Main body
-main_body();
+// --- Exploded preview (default) ---
+// Shows body, lid (raised), and ground plate pedestal side by side
 
-// Lid (offset for viewing, move to origin for export)
-translate([0, body_width + 10, 0])
-    lid();
+// Body (bottom)
+color("SteelBlue", 0.8)
+    body();
 
-// Ground plate stand (offset for viewing)
-translate([0, 2 * body_width + 20, 0])
-    ground_plate_stand();
+// Lid (top) - raised for visibility
+color("LightSteelBlue", 0.8)
+    translate([0, 0, body_split + 10]) // 10mm gap for exploded view
+        lid();
+
+// Ground plate pedestal (off to the side)
+color("Goldenrod", 0.8)
+    translate([body_length + 20, 0, 0])
+        ground_plate_pedestal();
+
+// --- Individual parts for STL export ---
+// Uncomment ONE of these and comment out the exploded view above:
+
+// body();             // Export as: OpenGemTester_body.stl
+// lid();              // Export as: OpenGemTester_lid.stl (print upside down)
+// ground_plate_pedestal(); // Export as: OpenGemTester_plate_pedestal.stl
