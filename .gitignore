@@ -1,0 +1,25 @@
+# PlatformIO
+.pio/
+.pioenvs/
+.piolibdeps/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Build
+firmware/.pio/
+*.o
+*.elf
+*.bin
+*.hex
+
+# OS
+.DS_Store
+Thumbs.db
+
+# STL exports (generate locally from .scad)
+# enclosure/*.stl
