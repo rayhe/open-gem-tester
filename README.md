@@ -8,7 +8,6 @@
 
 ---
 
-![OpenGemTester Prototype](docs/images/prototype.jpg)
 
 ## What Is This?
 
@@ -116,8 +115,8 @@ A DS18B20 digital temperature sensor continuously monitors ambient temperature. 
 1. **Assemble the hardware** following the schematic in [`hardware/`](hardware/).
 2. **Clone the repository:**
    ```bash
-   git clone https://github.com/user/OpenGemTester.git
-   cd OpenGemTester
+   git clone https://github.com/rayhe/open-gem-tester.git
+   cd open-gem-tester
    ```
 3. **Build and flash the firmware** (requires [PlatformIO](https://platformio.org/)):
    ```bash
